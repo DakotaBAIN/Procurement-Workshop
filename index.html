@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Procurement Workshop</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  :root{
+    --primary:#00AEEF;
+    --primary-dark:#0089BD;
+    --light:#93E2FF;
+    --neutral:#D9D9D9;
+    --neutral-dark:#B8B8B8;
+    --bg:#FFFFFF;
+    --panel:#F7FBFD;
+    --text:#1A1A2E;
+    --text-muted:#5B6470;
+    --white:#FFFFFF;
+    --error:#D64545;
+    --success:#1E9E6B;
+    --radius:10px;
+    --shadow:0 2px 8px rgba(0,0,0,0.08);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    -webkit-tap-highlight-color:transparent;
+  }
+  .app{max-width:900px;margin:0 auto;padding:16px 16px 100px;}
+  header.top{
+    background:var(--primary);
+    color:var(--white);
+    padding:20px 16px;
+    border-radius:0 0 var(--radius) var(--radius);
+    margin-bottom:16px;
+  }
+  header.top h1{margin:0 0 4px;font-size:22px;font-weight:700;}
+  header.top p.sub{margin:0;font-size:13px;opacity:0.9;}
+  .instructions{
+    background:var(--panel);
+    border:1px solid var(--light);
+    border-radius:var(--radius);
+    padding:16px;
+    margin-bottom:16px;
+    font-size:14px;
+    line-height:1.55;
+  }
+  .instructions strong{color:var(--primary-dark);}
+  .instructions ul{margin:8px 0 0;padding-left:20px;}
+  .instructions li{margin-bottom:4px;}
+  .counter-bar{
+    position:sticky;
+    top:0;
+    z-index:20;
+    background:var(--white);
+    border-bottom:2px solid var(--neutral);
+    padding:10px 16px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    font-size:13px;
+    font-weight:600;
+    margin:-16px -16px 16px;
+  }
+  .counter-bar .pill{
+    background:var(--panel);
+    border:1px solid var(--light);
+    border-radius:20px;
+    padding:6px 12px;
+    color:var(--text);
+  }
+  .counter-bar .pill b{color:var(--primary-dark);}
+  .counter-bar .high-pill b{color:var(--primary-dark);}
+  .phase{
+    border:1px solid var(--neutral);
+    border-radius:var(--radius);
+    margin-bottom:14px;
+    overflow:hidden;
+  }
+  .phase-header{
+    width:100%;
+    text-align:left;
+    background:var(--panel);
+    border:none;
+    padding:14px 16px;
+    font-size:16px;
+    font-weight:700;
+    color:var(--text);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    cursor:pointer;
+    min-height:44px;
+  }
+  .phase-header .chev{transition:transform 0.2s;font-size:14px;color:var(--primary-dark);}
+  .phase-header.open .chev{transform:rotate(180deg);}
+  .phase-body{display:none;padding:12px 16px 16px;}
+  .phase-body.open{display:block;}
+  .column-block{margin-bottom:16px;}
+  .column-block:last-child{margin-bottom:0;}
+  .column-title{
+    font-size:13px;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:0.03em;
+    color:var(--text-muted);
+    margin:0 0 8px;
+    padding-bottom:4px;
+    border-bottom:1px solid var(--neutral);
+  }
+  .step-grid{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:8px;
+  }
+  @media(min-width:520px){
+    .step-grid{grid-template-columns:1fr 1fr;}
+  }
+  .step-tile{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+    min-height:48px;
+    padding:10px 14px;
+    border-radius:8px;
+    border:1.5px solid var(--neutral);
+    background:var(--white);
+    font-size:14px;
+    font-weight:500;
+    color:var(--text);
+    cursor:pointer;
+    user-select:none;
+    transition:background 0.15s,border-color 0.15s,color 0.15s,transform 0.05s;
+  }
+  .step-tile:active{transform:scale(0.98);}
+  .step-tile.selected{
+    background:var(--primary);
+    border-color:var(--primary);
+    color:var(--white);
+  }
+  .step-tile.high{
+    background:var(--primary-dark);
+    border-color:var(--primary-dark);
+    color:var(--white);
+    box-shadow:0 0 0 2px var(--light) inset;
+  }
+  .step-tile .star{font-size:15px;opacity:0;transition:opacity 0.15s;}
+  .step-tile.high .star{opacity:1;}
+  .submit-bar{
+    position:fixed;
+    left:0;right:0;bottom:0;
+    background:var(--white);
+    border-top:1px solid var(--neutral);
+    padding:12px 16px calc(12px + env(safe-area-inset-bottom));
+    display:flex;
+    gap:10px;
+    z-index:30;
+    box-shadow:0 -2px 10px rgba(0,0,0,0.06);
+  }
+  .btn{
+    font-family:inherit;
+    font-size:15px;
+    font-weight:700;
+    border-radius:8px;
+    border:none;
+    padding:14px 18px;
+    cursor:pointer;
+    min-height:48px;
+  }
+  .btn-primary{background:var(--primary);color:var(--white);flex:1;}
+  .btn-primary:disabled{background:var(--neutral);color:var(--text-muted);cursor:not-allowed;}
+  .btn-secondary{background:var(--panel);color:var(--primary-dark);border:1.5px solid var(--light);}
+  .btn-text{background:none;color:var(--text-muted);text-decoration:underline;font-weight:500;padding:8px;}
+  .confirm-screen{
+    text-align:center;
+    padding:60px 20px;
+  }
+  .confirm-screen .checkmark{
+    width:72px;height:72px;border-radius:50%;
+    background:var(--success);color:var(--white);
+    display:flex;align-items:center;justify-content:center;
+    font-size:36px;margin:0 auto 20px;
+  }
+  .confirm-screen h2{margin:0 0 8px;}
+  .confirm-screen p{color:var(--text-muted);margin:0 0 24px;}
+  footer.facilitator-link{
+    text-align:center;
+    padding:24px 0 40px;
+  }
+  footer.facilitator-link button{
+    background:none;border:none;color:var(--text-muted);
+    font-size:12px;text-decoration:underline;cursor:pointer;padding:8px;
+  }
+
+  /* Facilitator view */
+  .fac-wrap{max-width:1000px;margin:0 auto;padding:16px 16px 60px;}
+  .fac-header{
+    display:flex;justify-content:space-between;align-items:center;
+    margin-bottom:16px;flex-wrap:wrap;gap:10px;
+  }
+  .fac-header h1{font-size:20px;margin:0;color:var(--primary-dark);}
+  .fac-actions{display:flex;gap:8px;flex-wrap:wrap;}
+  .card{
+    background:var(--white);
+    border:1px solid var(--neutral);
+    border-radius:var(--radius);
+    padding:16px;
+    margin-bottom:16px;
+    box-shadow:var(--shadow);
+  }
+  .card h3{margin:0 0 12px;font-size:15px;color:var(--text);}
+  .stat-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;}
+  .stat-box{
+    flex:1;min-width:120px;
+    background:var(--panel);
+    border:1px solid var(--light);
+    border-radius:8px;
+    padding:14px;
+    text-align:center;
+  }
+  .stat-box .num{font-size:26px;font-weight:800;color:var(--primary-dark);}
+  .stat-box .label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.03em;}
+  table.results-table{width:100%;border-collapse:collapse;font-size:13px;}
+  table.results-table th, table.results-table td{
+    text-align:left;padding:8px 10px;border-bottom:1px solid var(--neutral);
+  }
+  table.results-table th{
+    cursor:pointer;color:var(--text-muted);font-size:11px;
+    text-transform:uppercase;letter-spacing:0.02em;user-select:none;
+    position:sticky;top:0;background:var(--white);
+  }
+  table.results-table th.active{color:var(--primary-dark);}
+  .bar-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13px;}
+  .bar-label{width:170px;flex-shrink:0;color:var(--text);}
+  .bar-track{flex:1;background:var(--panel);border-radius:6px;overflow:hidden;height:18px;position:relative;}
+  .bar-fill{height:100%;background:var(--primary);}
+  .bar-fill.high{background:var(--primary-dark);}
+  .bar-value{width:36px;text-align:right;font-weight:700;color:var(--text);flex-shrink:0;}
+  .hist-bar{display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:4px;}
+  .hist-label{width:60px;color:var(--text-muted);flex-shrink:0;}
+  .hist-track{flex:1;background:var(--panel);border-radius:4px;overflow:hidden;height:14px;}
+  .hist-fill{height:100%;background:var(--light);}
+  .passcode-box{
+    max-width:340px;margin:80px auto;text-align:center;padding:0 16px;
+  }
+  .passcode-box input{
+    width:100%;padding:14px;font-size:16px;border:1.5px solid var(--neutral);
+    border-radius:8px;margin:16px 0;text-align:center;letter-spacing:2px;
+  }
+  .error-text{color:var(--error);font-size:13px;margin-top:8px;}
+  .hidden-panel{
+    text-align:center;padding:40px 20px;color:var(--text-muted);
+  }
+  .badge{
+    display:inline-block;background:var(--neutral);color:var(--text-muted);
+    font-size:11px;padding:3px 8px;border-radius:10px;margin-left:6px;
+  }
+  .loading-row{padding:20px;text-align:center;color:var(--text-muted);font-size:13px;}
+
+  /* QR modal */
+  .qr-overlay{
+    position:fixed;inset:0;background:rgba(26,26,46,0.55);
+    display:flex;align-items:center;justify-content:center;
+    z-index:100;padding:20px;
+  }
+  .qr-modal{
+    background:var(--white);border-radius:var(--radius);
+    padding:24px;max-width:340px;width:100%;text-align:center;
+    box-shadow:0 8px 30px rgba(0,0,0,0.25);
+  }
+  .qr-modal h3{margin:0 0 4px;font-size:17px;}
+  .qr-modal p.hint{font-size:12px;color:var(--text-muted);margin:0 0 14px;line-height:1.5;}
+  .qr-modal input{
+    width:100%;padding:10px 12px;font-size:13px;border:1.5px solid var(--neutral);
+    border-radius:8px;margin-bottom:10px;
+  }
+  .qr-code-box{
+    display:flex;align-items:center;justify-content:center;
+    padding:12px;background:var(--white);border:1px solid var(--neutral);
+    border-radius:8px;margin:12px 0;min-height:220px;
+  }
+  .qr-modal .btn-row{display:flex;gap:8px;margin-top:10px;}
+  .qr-modal .btn-row .btn{flex:1;font-size:13px;padding:10px;}
+</style>
+</head>
+<body>
+
+<div id="root"></div>
+
+<script>
+(function(){
+
+  // ---------- Data model ----------
+  const DATA = [
+    { name:"Source to Contract", columns:[
+      { name:"Strategic Sourcing", steps:["Spend analysis","Category management","Supplier and market research","RFx","Demand management","Tail Spend Management","Benchmarking and should-cost analysis","Negotiation","ESG/sustainability criteria in sourcing"]},
+      { name:"Contracting", steps:["Preparation / Modelling","Contract Creation and Redlining","Contract Administration","Contract Management","Term management","Contract close out","Terms & conditions","Renewal management","Obligation & compliance tracking"]},
+      { name:"Supplier Management", steps:["Qualify supplier","Update Supplier System","Supplier Enablement","Approved supplier list","Ongoing supplier management","Vendor Creation","Vendor lifecycle management","Supplier risk assessment","Supplier offboarding/deactivation"]}
+    ]},
+    { name:"Procure to Pay", columns:[
+      { name:"Requisitioning", steps:["Maintain Templates","Create Requisition","Approve Requisition","Manage Requisition","Route to Sourcing","Link to Planning","Budget check/availability"]},
+      { name:"Tactical Buying", steps:["Identify Supplier","Request for Quote","Track / Monitor Quotes","Decision","Demand Management","Fulfilment","Contract compliance / maverick spend check"]},
+      { name:"PO Management", steps:["Approve Purchase","Create PO","Transmit Order","Track Status","Process Change Order","Blanket PO / release management","Expediting"]},
+      { name:"Receipt", steps:["Record Receipt and Code","Quality Inspection","Research Exceptions","Resolve Exceptions","Review / Approve Transaction","Process Returns","Batch/lot traceability and recall handling","Cold chain compliance check"]},
+      { name:"Invoice", steps:["Record Invoice","Matching process","Reconcile rates and terms","Flag exceptions","Resolve Exceptions","Review / Approve Transaction","Non-PO invoice processing"]},
+      { name:"Payment", steps:["Working Capital","Prepare Payment","Review / Approve Payment","Manage Exceptions","Release Payment","Update Payment Pipeline","Vendor statement reconciliation"]}
+    ]},
+    { name:"Compliance", columns:[
+      { name:"Compliance", steps:["Modern Slavery Act supplier due diligence","TGA / Good Distribution Practice (GDP) supplier compliance","Payment Times Reporting Scheme compliance"]}
+    ]}
+  ];
+
+  const FACILITATOR_PASSCODE = "procurement2026";
+
+  // Power Automate flow URL — acts as the backend. Keep this private; anyone with
+  // this URL can submit/read/clear workshop data (no login required).
+  const BACKEND_URL = "https://defaulteb120e1265f1477abe8cfe4f659267.24.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/467472b0d8ad4388a9bebd2f78e459e7/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=xZNvB0w-z_2fAnaWRtUnG9RaAIgyEe9my4e6-onXouQ";
+
+  async function callBackend(payload){
+    const res = await fetch(BACKEND_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) {
+      let errText = '';
+      try { errText = await res.text(); } catch(e) {}
+      throw new Error(`Backend returned ${res.status}${errText ? ': ' + errText : ''}`);
+    }
+    // Response body may be empty for some actions; guard against JSON parse failure.
+    const text = await res.text();
+    if (!text) return null;
+    try { return JSON.parse(text); } catch(e) { return text; }
+  }
+
+  // Build flat step index with stable ids
+  const STEP_INDEX = []; // {id, phase, column, step}
+  DATA.forEach((phase, pi) => {
+    phase.columns.forEach((col, ci) => {
+      col.steps.forEach((step, si) => {
+        STEP_INDEX.push({ id: `${pi}-${ci}-${si}`, phase: phase.name, column: col.name, step });
+      });
+    });
+  });
+
+  function genId(){
+    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    return 'p-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+  }
+
+  // In-memory only (per instructions: no localStorage/sessionStorage)
+  const participantId = genId();
+
+  const state = {
+    view: 'participant', // participant | passcode | facilitator
+    selections: {},       // stepId -> 1 (selected) or 2 (high)
+    submitted: false,
+    openPhases: { 0: true },
+    passcodeError: false,
+    facilitatorRevealed: false,
+    facilitatorData: null,
+    facilitatorLoading: false,
+    facilitatorError: null,
+    sortKey: 'total',
+    sortDir: 'desc',
+    showQR: false,
+    qrUrl: (window.location.href.indexOf('about:') === 0 ? '' : window.location.href),
+    autoRefreshTimer: null,
+    autoRefreshOn: true,
+    facilitatorLastUpdated: null
+  };
+
+  const root = document.getElementById('root');
+
+  function h(tag, attrs, children){
+    const el = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(k => {
+      if (k === 'class') el.className = attrs[k];
+      else if (k === 'html') el.innerHTML = attrs[k];
+      else if (k.startsWith('on')) el.addEventListener(k.slice(2), attrs[k]);
+      else el.setAttribute(k, attrs[k]);
+    });
+    (children||[]).forEach(c => { if (c) el.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); });
+    return el;
+  }
+
+  function render(){
+    root.innerHTML = '';
+    if (state.view === 'participant') root.appendChild(renderParticipant());
+    else if (state.view === 'passcode') root.appendChild(renderPasscode());
+    else if (state.view === 'facilitator') root.appendChild(renderFacilitator());
+  }
+
+  // ---------- Participant view ----------
+  function counts(){
+    let selected = 0, high = 0;
+    Object.values(state.selections).forEach(t => { if (t === 1) selected++; if (t === 2) high++; });
+    return { selected, high, total: selected + high };
+  }
+
+  function renderParticipant(){
+    if (state.submitted) return renderConfirmScreen();
+
+    const wrap = h('div', { class:'app' });
+
+    const header = h('header', { class:'top' }, [
+      h('h1', {}, ['Procurement Workshop']),
+      h('p', { class:'sub' }, ['Tap process steps where automation would help'])
+    ]);
+    wrap.appendChild(header);
+
+    wrap.appendChild(h('div', { class:'instructions' }, [
+      h('strong', {}, ['Welcome to the Procurement Workshop!']),
+      document.createElement('br'),
+      document.createTextNode('Tap the process steps below where you think automation would be most useful — especially the pain points or heavily manual tasks.'),
+      h('ul', {}, [
+        h('li', {}, ['1 tap = this could benefit from automation']),
+        h('li', {}, ['2 taps = high-priority opportunity']),
+        h('li', {}, ['3 taps = deselect'])
+      ]),
+      h('div', {}, ["When you're done, hit Submit."])
+    ]));
+
+    const c = counts();
+    const counterBar = h('div', { class:'counter-bar' }, [
+      h('span', { class:'pill' }, [`${c.total} step${c.total===1?'':'s'} selected`]),
+      h('span', { class:'pill high-pill' }, [h('b',{},[String(c.high)]), ' high priority'])
+    ]);
+    wrap.appendChild(counterBar);
+
+    DATA.forEach((phase, pi) => {
+      const isOpen = !!state.openPhases[pi];
+      const phaseEl = h('div', { class:'phase' });
+      const headerBtn = h('button', {
+        class: 'phase-header' + (isOpen ? ' open' : ''),
+        onclick: () => { state.openPhases[pi] = !state.openPhases[pi]; render(); }
+      }, [
+        h('span', {}, [phase.name]),
+        h('span', { class:'chev' }, ['▾'])
+      ]);
+      phaseEl.appendChild(headerBtn);
+
+      const body = h('div', { class:'phase-body' + (isOpen ? ' open' : '') });
+      phase.columns.forEach((col, ci) => {
+        const colBlock = h('div', { class:'column-block' });
+        colBlock.appendChild(h('div', { class:'column-title' }, [col.name]));
+        const grid = h('div', { class:'step-grid' });
+        col.steps.forEach((stepName, si) => {
+          const id = `${pi}-${ci}-${si}`;
+          const tier = state.selections[id] || 0;
+          const tile = h('div', {
+            class: 'step-tile' + (tier === 1 ? ' selected' : '') + (tier === 2 ? ' high' : ''),
+            onclick: () => {
+              const cur = state.selections[id] || 0;
+              const next = (cur + 1) % 3;
+              if (next === 0) delete state.selections[id];
+              else state.selections[id] = next;
+              render();
+            }
+          }, [
+            h('span', {}, [stepName]),
+            h('span', { class:'star' }, ['★'])
+          ]);
+          grid.appendChild(tile);
+        });
+        colBlock.appendChild(grid);
+        body.appendChild(colBlock);
+      });
+      phaseEl.appendChild(body);
+      wrap.appendChild(phaseEl);
+    });
+
+    wrap.appendChild(h('footer', { class:'facilitator-link' }, [
+      h('button', { onclick: () => { state.view = 'passcode'; state.passcodeError = false; render(); } }, ['Facilitator / Results'])
+    ]));
+
+    const submitBar = h('div', { class:'submit-bar' }, [
+      h('button', {
+        class:'btn btn-primary',
+        onclick: submitPicks
+      }, ['Submit my picks'])
+    ]);
+    wrap.appendChild(submitBar);
+
+    return wrap;
+  }
+
+  function renderConfirmScreen(){
+    const wrap = h('div', { class:'app' });
+    wrap.appendChild(h('div', { class:'confirm-screen' }, [
+      h('div', { class:'checkmark' }, ['✓']),
+      h('h2', {}, ['Thanks — your picks are in!']),
+      h('p', {}, ['Your selections have been recorded anonymously for this workshop.']),
+      h('button', {
+        class:'btn btn-secondary',
+        onclick: () => { state.submitted = false; render(); }
+      }, ['Edit my picks'])
+    ]));
+    return wrap;
+  }
+
+  async function submitPicks(){
+    const votes = STEP_INDEX
+      .filter(s => state.selections[s.id])
+      .map(s => ({ phase: s.phase, column: s.column, step: s.step, tier: state.selections[s.id] === 2 ? 'high' : 'selected' }));
+
+    const payload = {
+      action: 'submit',
+      participantId,
+      timestamp: new Date().toISOString(),
+      votes
+    };
+
+    try {
+      await callBackend(payload);
+      state.submitted = true;
+      render();
+    } catch (err) {
+      console.error('Submit failed:', err);
+      alert('Something went wrong saving your picks: ' + (err && err.message ? err.message : String(err)) + '\n\nPlease try again.');
+    }
+  }
+
+  // ---------- Passcode gate ----------
+  function renderPasscode(){
+    const wrap = h('div', { class:'app' });
+    let inputEl;
+    const box = h('div', { class:'passcode-box' }, [
+      h('h2', {}, ['Facilitator Access']),
+      h('p', { class:'', style:'color:var(--text-muted);font-size:13px;' }, ['Enter the facilitator passcode to view results.'])
+    ]);
+    inputEl = h('input', { type:'password', placeholder:'Passcode', autocomplete:'off' });
+    box.appendChild(inputEl);
+    if (state.passcodeError) box.appendChild(h('div', { class:'error-text' }, ['Incorrect passcode. Try again.']));
+    const btnRow = h('div', { style:'display:flex;gap:8px;justify-content:center;' }, [
+      h('button', { class:'btn btn-secondary', onclick: () => { state.view = 'participant'; render(); } }, ['Back']),
+      h('button', { class:'btn btn-primary', style:'flex:none;padding:14px 28px;', onclick: () => {
+        if (inputEl.value === FACILITATOR_PASSCODE) {
+          state.view = 'facilitator';
+          state.facilitatorRevealed = false;
+          render();
+        } else {
+          state.passcodeError = true;
+          render();
+        }
+      }}, ['Enter'])
+    ]);
+    box.appendChild(btnRow);
+    wrap.appendChild(box);
+    return wrap;
+  }
+
+  // ---------- Facilitator view ----------
+  function startAutoRefresh(){
+    if (state.autoRefreshTimer) return;
+    state.autoRefreshTimer = setInterval(() => {
+      if (state.view === 'facilitator' && state.facilitatorRevealed && state.autoRefreshOn) {
+        loadFacilitatorData();
+      }
+    }, 8000);
+  }
+
+  function stopAutoRefresh(){
+    if (state.autoRefreshTimer) {
+      clearInterval(state.autoRefreshTimer);
+      state.autoRefreshTimer = null;
+    }
+  }
+
+  async function loadFacilitatorData(){
+    state.facilitatorLoading = true;
+    state.facilitatorError = null;
+    render();
+    try {
+      const result = await callBackend({ action: 'getResults' });
+      // Backend returns the raw array of Excel rows directly.
+      state.facilitatorData = Array.isArray(result) ? result : (result && result.value) ? result.value : [];
+      state.facilitatorLastUpdated = new Date();
+    } catch (err) {
+      console.error('Load results failed:', err);
+      state.facilitatorError = 'Could not load results: ' + (err && err.message ? err.message : String(err));
+      state.facilitatorData = [];
+    }
+    state.facilitatorLoading = false;
+    render();
+  }
+
+  function computeAggregates(rows){
+    const perStep = {}; // id -> {phase,column,step,total,high}
+    STEP_INDEX.forEach(s => { perStep[s.id] = { phase:s.phase, column:s.column, step:s.step, total:0, high:0 }; });
+
+    const perParticipantCount = {}; // participantId -> number of rows
+
+    (rows || []).forEach(row => {
+      const phase = row.Phase, column = row.Column, step = row.Step, tier = row.Tier, pid = row.ParticipantId;
+      const match = STEP_INDEX.find(s => s.phase === phase && s.column === column && s.step === step);
+      if (match) {
+        perStep[match.id].total++;
+        if (tier === 'high') perStep[match.id].high++;
+      }
+      if (pid) perParticipantCount[pid] = (perParticipantCount[pid] || 0) + 1;
+    });
+
+    const participantCounts = Object.values(perParticipantCount);
+    const participants = Object.keys(perParticipantCount).length;
+
+    const byColumn = {};
+    const byPhase = {};
+    Object.values(perStep).forEach(row => {
+      byColumn[row.column] = byColumn[row.column] || { total:0, high:0 };
+      byColumn[row.column].total += row.total;
+      byColumn[row.column].high += row.high;
+      byPhase[row.phase] = byPhase[row.phase] || { total:0, high:0 };
+      byPhase[row.phase].total += row.total;
+      byPhase[row.phase].high += row.high;
+    });
+
+    let min=0, max=0, avg=0;
+    if (participantCounts.length) {
+      min = Math.min(...participantCounts);
+      max = Math.max(...participantCounts);
+      avg = (participantCounts.reduce((a,b)=>a+b,0) / participantCounts.length);
+    }
+
+    return { perStep, byColumn, byPhase, participants, participantCounts, min, max, avg };
+  }
+
+  function renderFacilitator(){
+    const wrap = h('div', { class:'fac-wrap' });
+    const lastUpdatedText = state.facilitatorLastUpdated
+      ? `Updated ${state.facilitatorLastUpdated.toLocaleTimeString()}`
+      : '';
+    const header = h('div', { class:'fac-header' }, [
+      h('h1', {}, ['Facilitator / Results', h('span',{class:'badge'},['not visible to participants'])]),
+      h('div', { class:'fac-actions' }, [
+        state.facilitatorRevealed ? h('button', {
+          class:'btn btn-secondary',
+          onclick: () => { state.autoRefreshOn = !state.autoRefreshOn; render(); }
+        }, [state.autoRefreshOn ? '⏸ Pause live updates' : '▶ Resume live updates']) : null,
+        h('button', { class:'btn btn-secondary', onclick: () => loadFacilitatorData() }, ['Refresh now']),
+        h('button', { class:'btn btn-secondary', onclick: exportCSV }, ['Export CSV']),
+        h('button', { class:'btn btn-text', onclick: clearAllData }, ['Clear all data']),
+        h('button', { class:'btn btn-text', onclick: () => { stopAutoRefresh(); state.view = 'participant'; render(); } }, ['Exit'])
+      ])
+    ]);
+    wrap.appendChild(header);
+    if (lastUpdatedText) {
+      wrap.appendChild(h('div', { style:'text-align:right;font-size:11px;color:var(--text-muted);margin:-8px 0 12px;' }, [
+        lastUpdatedText + (state.autoRefreshOn ? ' · live updates every 8s' : ' · live updates paused')
+      ]));
+    }
+
+    if (!state.facilitatorRevealed) {
+      const card = h('div', { class:'card' }, [
+        h('div', { class:'hidden-panel' }, [
+          h('p', {}, ['Results are hidden until you choose to reveal them.']),
+          h('button', {
+            class:'btn btn-primary', style:'flex:none;padding:14px 28px;',
+            onclick: async () => { state.facilitatorRevealed = true; await loadFacilitatorData(); startAutoRefresh(); }
+          }, ['Reveal Results'])
+        ])
+      ]);
+      wrap.appendChild(card);
+      return wrap;
+    }
+
+    if (state.facilitatorError) {
+      wrap.appendChild(h('div', { class:'card' }, [h('div', { class:'hidden-panel' }, [state.facilitatorError])]));
+      return wrap;
+    }
+
+    if (state.facilitatorLoading || !state.facilitatorData) {
+      wrap.appendChild(h('div', { class:'card' }, [h('div', { class:'loading-row' }, ['Loading results…'])]));
+      if (!state.facilitatorLoading && !state.facilitatorData) loadFacilitatorData();
+      return wrap;
+    }
+
+    const agg = computeAggregates(state.facilitatorData);
+
+    // Stat row
+    const statRow = h('div', { class:'stat-row' }, [
+      statBox(agg.participants, 'Submitted'),
+      statBox(agg.min, 'Min steps'),
+      statBox(agg.max, 'Max steps'),
+      statBox(agg.avg.toFixed(1), 'Avg steps')
+    ]);
+    wrap.appendChild(statRow);
+
+    // Ranked table
+    const tableCard = h('div', { class:'card' });
+    tableCard.appendChild(h('h3', {}, ['All steps — ranked']));
+    const rows = Object.values(agg.perStep);
+    rows.sort((a,b) => {
+      const dir = state.sortDir === 'desc' ? -1 : 1;
+      return (a[state.sortKey] - b[state.sortKey]) * dir;
+    });
+    const table = h('table', { class:'results-table' });
+    const thead = h('thead', {}, [
+      h('tr', {}, [
+        thCell('Step', 'step'),
+        thCell('Phase', 'phase'),
+        thCell('Column', 'column'),
+        thCell('Total', 'total'),
+        thCell('High priority', 'high')
+      ])
+    ]);
+    table.appendChild(thead);
+    const tbody = h('tbody');
+    rows.forEach(r => {
+      tbody.appendChild(h('tr', {}, [
+        h('td', {}, [r.step]),
+        h('td', {}, [r.phase]),
+        h('td', {}, [r.column]),
+        h('td', {}, [String(r.total)]),
+        h('td', {}, [String(r.high)])
+      ]));
+    });
+    table.appendChild(tbody);
+    tableCard.appendChild(table);
+    wrap.appendChild(tableCard);
+
+    // Rollup by phase
+    wrap.appendChild(rollupCard('Roll-up by Phase', agg.byPhase));
+    // Rollup by column
+    wrap.appendChild(rollupCard('Roll-up by Column', agg.byColumn));
+
+    // Histogram
+    const histCard = h('div', { class:'card' });
+    histCard.appendChild(h('h3', {}, ['Steps selected per participant']));
+    if (!agg.participantCounts.length) {
+      histCard.appendChild(h('p', { style:'color:var(--text-muted);font-size:13px;' }, ['No submissions yet.']));
+    } else {
+      const buckets = [[0,5],[6,10],[11,20],[21,35],[36,73]];
+      const maxCount = Math.max(1, ...buckets.map(([lo,hi]) => agg.participantCounts.filter(c => c>=lo && c<=hi).length));
+      buckets.forEach(([lo,hi]) => {
+        const cnt = agg.participantCounts.filter(c => c>=lo && c<=hi).length;
+        histCard.appendChild(h('div', { class:'hist-bar' }, [
+          h('div', { class:'hist-label' }, [`${lo}-${hi}`]),
+          h('div', { class:'hist-track' }, [h('div', { class:'hist-fill', style:`width:${(cnt/maxCount*100)}%` })]),
+          h('div', { style:'width:24px;text-align:right;font-weight:700;' }, [String(cnt)])
+        ]));
+      });
+    }
+    wrap.appendChild(histCard);
+
+    return wrap;
+  }
+
+  function statBox(num, label){
+    return h('div', { class:'stat-box' }, [
+      h('div', { class:'num' }, [String(num)]),
+      h('div', { class:'label' }, [label])
+    ]);
+  }
+
+  function thCell(label, key){
+    const active = state.sortKey === key;
+    return h('th', {
+      class: active ? 'active' : '',
+      onclick: () => {
+        if (state.sortKey === key) state.sortDir = state.sortDir === 'desc' ? 'asc' : 'desc';
+        else { state.sortKey = key; state.sortDir = 'desc'; }
+        render();
+      }
+    }, [label + (active ? (state.sortDir === 'desc' ? ' ▾' : ' ▴') : '')]);
+  }
+
+  function rollupCard(title, rollup){
+    const card = h('div', { class:'card' });
+    card.appendChild(h('h3', {}, [title]));
+    const entries = Object.entries(rollup).sort((a,b) => b[1].total - a[1].total);
+    if (!entries.length) {
+      card.appendChild(h('p', { style:'color:var(--text-muted);font-size:13px;' }, ['No data yet.']));
+      return card;
+    }
+    const maxVal = Math.max(...entries.map(([,v]) => v.total), 1);
+    entries.forEach(([name, v]) => {
+      card.appendChild(h('div', { class:'bar-row' }, [
+        h('div', { class:'bar-label' }, [name]),
+        h('div', { class:'bar-track' }, [h('div', { class:'bar-fill', style:`width:${(v.total/maxVal*100)}%` })]),
+        h('div', { class:'bar-value' }, [String(v.total)])
+      ]));
+    });
+    return card;
+  }
+
+  function exportCSV(){
+    if (!state.facilitatorData || !state.facilitatorData.length) { alert('Load results first.'); return; }
+    const lines = ['participant_id,phase,column,step,tier,timestamp'];
+    state.facilitatorData.forEach(row => {
+      const stepEscaped = `"${String(row.Step || '').replace(/"/g,'""')}"`;
+      lines.push([row.ParticipantId, row.Phase, row.Column, stepEscaped, row.Tier, row.Timestamp].join(','));
+    });
+    const csv = lines.join('\n');
+    const blob = new Blob([csv], { type:'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'procurement_workshop_votes.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  async function clearAllData(){
+    if (!confirm('This will permanently delete ALL participant submissions for this workshop. Continue?')) return;
+    try {
+      await callBackend({ action: 'clear' });
+      state.facilitatorData = [];
+      render();
+    } catch (err) {
+      console.error('Clear failed:', err);
+      alert('Could not clear data: ' + (err && err.message ? err.message : String(err)));
+    }
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>
