@@ -376,8 +376,6 @@
     sortDir: 'desc',
     showQR: false,
     qrUrl: (window.location.href.indexOf('about:') === 0 ? '' : window.location.href),
-    autoRefreshTimer: null,
-    autoRefreshOn: true,
     facilitatorLastUpdated: null
   };
 
@@ -559,22 +557,6 @@
   }
 
   // ---------- Facilitator view ----------
-  function startAutoRefresh(){
-    if (state.autoRefreshTimer) return;
-    state.autoRefreshTimer = setInterval(() => {
-      if (state.view === 'facilitator' && state.facilitatorRevealed && state.autoRefreshOn) {
-        loadFacilitatorData();
-      }
-    }, 8000);
-  }
-
-  function stopAutoRefresh(){
-    if (state.autoRefreshTimer) {
-      clearInterval(state.autoRefreshTimer);
-      state.autoRefreshTimer = null;
-    }
-  }
-
   async function loadFacilitatorData(){
     state.facilitatorLoading = true;
     state.facilitatorError = null;
@@ -631,22 +613,18 @@
       ? `Updated ${state.facilitatorLastUpdated.toLocaleTimeString()}`
       : '';
     const header = h('div', { class:'fac-header' }, [
-      h('h1', {}, ['Facilitator / Results', h('span',{class:'badge'},['not visible to participants'])]),
+      h('h1', {}, ['Results', h('span',{class:'badge'},['not visible to participants'])]),
       h('div', { class:'fac-actions' }, [
-        state.facilitatorRevealed ? h('button', {
-          class:'btn btn-secondary',
-          onclick: () => { state.autoRefreshOn = !state.autoRefreshOn; render(); }
-        }, [state.autoRefreshOn ? '⏸ Pause live updates' : '▶ Resume live updates']) : null,
         h('button', { class:'btn btn-secondary', onclick: () => loadFacilitatorData() }, ['Refresh now']),
         h('button', { class:'btn btn-secondary', onclick: exportCSV }, ['Export CSV']),
         h('button', { class:'btn btn-text', onclick: clearAllData }, ['Clear all data']),
-        h('button', { class:'btn btn-text', onclick: () => { stopAutoRefresh(); state.view = 'participant'; render(); } }, ['Exit'])
+        h('button', { class:'btn btn-text', onclick: () => { state.view = 'participant'; render(); } }, ['Exit'])
       ])
     ]);
     wrap.appendChild(header);
     if (lastUpdatedText) {
       wrap.appendChild(h('div', { style:'text-align:right;font-size:11px;color:var(--text-muted);margin:-8px 0 12px;' }, [
-        lastUpdatedText + (state.autoRefreshOn ? ' · live updates every 8s' : ' · live updates paused')
+        lastUpdatedText
       ]));
     }
 
@@ -656,7 +634,7 @@
           h('p', {}, ['Results are hidden until you choose to reveal them.']),
           h('button', {
             class:'btn btn-primary', style:'flex:none;padding:14px 28px;',
-            onclick: async () => { state.facilitatorRevealed = true; await loadFacilitatorData(); startAutoRefresh(); }
+            onclick: async () => { state.facilitatorRevealed = true; await loadFacilitatorData(); }
           }, ['Reveal Results'])
         ])
       ]);
@@ -696,7 +674,7 @@
       h('tr', {}, [
         thCell('Step', 'step'),
         thCell('Phase', 'phase'),
-        thCell('Column', 'column'),
+        thCell('Process area', 'column'),
         thCell('Total', 'total'),
         thCell('Existing initiatives', 'existing')
       ])
@@ -716,13 +694,16 @@
     tableCard.appendChild(table);
     wrap.appendChild(tableCard);
 
-    // Top 5 initiative areas (biggest pain points by total selections)
-    wrap.appendChild(topStepsCard('Top 5 Initiative Areas', rows));
+    // Top 5 initiative priorities (biggest pain points by total selections)
+    wrap.appendChild(topStepsCard('Top 5 Initiative Priorities', rows));
+
+    // Current Initiatives — every step flagged as "an initiative is already underway"
+    wrap.appendChild(currentInitiativesCard(rows));
 
     // Rollup by phase
-    wrap.appendChild(rollupCard('Roll-up by Phase', agg.byPhase));
+    wrap.appendChild(rollupCard('Priority phases in the procurement process', agg.byPhase));
     // Rollup by column
-    wrap.appendChild(rollupCard('Roll-up by Column', agg.byColumn));
+    wrap.appendChild(rollupCard('Priority process areas by phase', agg.byColumn));
 
     return wrap;
   }
@@ -744,6 +725,40 @@
         render();
       }
     }, [label + (active ? (state.sortDir === 'desc' ? ' ▾' : ' ▴') : '')]);
+  }
+
+  function currentInitiativesCard(rows){
+    const card = h('div', { class:'card' });
+    card.appendChild(h('h3', {}, ['Current Initiatives']));
+    card.appendChild(h('p', { style:'color:var(--text-muted);font-size:12px;margin:-6px 0 12px;' }, [
+      'Steps flagged by participants as already having an initiative underway.'
+    ]));
+    const flagged = rows.filter(r => r.existing > 0).sort((a,b) => b.existing - a.existing);
+    if (!flagged.length) {
+      card.appendChild(h('p', { style:'color:var(--text-muted);font-size:13px;' }, ['None flagged yet.']));
+      return card;
+    }
+    const table = h('table', { class:'results-table' });
+    table.appendChild(h('thead', {}, [
+      h('tr', {}, [
+        h('th', {}, ['Step']),
+        h('th', {}, ['Phase']),
+        h('th', {}, ['Process area']),
+        h('th', {}, ['Flagged by'])
+      ])
+    ]));
+    const tbody = h('tbody');
+    flagged.forEach(r => {
+      tbody.appendChild(h('tr', {}, [
+        h('td', {}, [r.step]),
+        h('td', {}, [r.phase]),
+        h('td', {}, [r.column]),
+        h('td', {}, [String(r.existing)])
+      ]));
+    });
+    table.appendChild(tbody);
+    card.appendChild(table);
+    return card;
   }
 
   function topStepsCard(title, sortedRowsByTotalDesc){
