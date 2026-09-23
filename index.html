@@ -149,18 +149,24 @@
     color:var(--white);
     box-shadow:0 0 0 2px var(--light) inset;
   }
-  .step-tile .star{font-size:15px;opacity:0;transition:opacity 0.15s;}
-  .step-tile.high .star{opacity:1;}
+  .step-tile .badge-icon{font-size:14px;opacity:0;transition:opacity 0.15s;}
+  .step-tile.high .badge-icon{opacity:1;}
   .submit-bar{
     position:fixed;
     left:0;right:0;bottom:0;
     background:var(--white);
     border-top:1px solid var(--neutral);
-    padding:12px 16px calc(12px + env(safe-area-inset-bottom));
+    padding:10px 16px calc(12px + env(safe-area-inset-bottom));
     display:flex;
-    gap:10px;
+    flex-direction:column;
+    gap:6px;
     z-index:30;
     box-shadow:0 -2px 10px rgba(0,0,0,0.06);
+  }
+  .submit-note{
+    text-align:center;
+    font-size:12px;
+    color:var(--text-muted);
   }
   .btn{
     font-family:inherit;
@@ -420,7 +426,7 @@
       document.createTextNode('Tap the process steps below where you think automation would be most useful — especially the pain points or heavily manual tasks.'),
       h('ul', {}, [
         h('li', {}, ['1 tap = this could benefit from automation']),
-        h('li', {}, ['2 taps = high-priority opportunity']),
+        h('li', {}, ['2 taps = an initiative is already underway here']),
         h('li', {}, ['3 taps = deselect'])
       ]),
       h('div', {}, ["When you're done, hit Submit."])
@@ -429,7 +435,7 @@
     const c = counts();
     const counterBar = h('div', { class:'counter-bar' }, [
       h('span', { class:'pill' }, [`${c.total} step${c.total===1?'':'s'} selected`]),
-      h('span', { class:'pill high-pill' }, [h('b',{},[String(c.high)]), ' high priority'])
+      h('span', { class:'pill high-pill' }, [h('b',{},[String(c.high)]), ' existing initiatives'])
     ]);
     wrap.appendChild(counterBar);
 
@@ -464,7 +470,7 @@
             }
           }, [
             h('span', {}, [stepName]),
-            h('span', { class:'star' }, ['★'])
+            h('span', { class:'badge-icon' }, ['⚙'])
           ]);
           grid.appendChild(tile);
         });
@@ -480,6 +486,7 @@
     ]));
 
     const submitBar = h('div', { class:'submit-bar' }, [
+      h('div', { class:'submit-note' }, ['Choices cannot be edited once submitted — double check before you submit.']),
       h('button', {
         class:'btn btn-primary',
         onclick: submitPicks
@@ -495,11 +502,7 @@
     wrap.appendChild(h('div', { class:'confirm-screen' }, [
       h('div', { class:'checkmark' }, ['✓']),
       h('h2', {}, ['Thanks — your picks are in!']),
-      h('p', {}, ['Your selections have been recorded anonymously for this workshop.']),
-      h('button', {
-        class:'btn btn-secondary',
-        onclick: () => { state.submitted = false; render(); }
-      }, ['Edit my picks'])
+      h('p', {}, ['Your selections have been recorded anonymously for this workshop.'])
     ]));
     return wrap;
   }
@@ -507,7 +510,7 @@
   async function submitPicks(){
     const votes = STEP_INDEX
       .filter(s => state.selections[s.id])
-      .map(s => ({ phase: s.phase, column: s.column, step: s.step, tier: state.selections[s.id] === 2 ? 'high' : 'selected' }));
+      .map(s => ({ phase: s.phase, column: s.column, step: s.step, tier: state.selections[s.id] === 2 ? 'existing' : 'priority' }));
 
     const payload = {
       action: 'submit',
@@ -591,43 +594,35 @@
   }
 
   function computeAggregates(rows){
-    const perStep = {}; // id -> {phase,column,step,total,high}
-    STEP_INDEX.forEach(s => { perStep[s.id] = { phase:s.phase, column:s.column, step:s.step, total:0, high:0 }; });
+    const perStep = {}; // id -> {phase,column,step,total,existing}
+    STEP_INDEX.forEach(s => { perStep[s.id] = { phase:s.phase, column:s.column, step:s.step, total:0, existing:0 }; });
 
-    const perParticipantCount = {}; // participantId -> number of rows
+    const participantIds = new Set();
 
     (rows || []).forEach(row => {
       const phase = row.Phase, column = row.Column, step = row.Step, tier = row.Tier, pid = row.ParticipantId;
       const match = STEP_INDEX.find(s => s.phase === phase && s.column === column && s.step === step);
       if (match) {
         perStep[match.id].total++;
-        if (tier === 'high') perStep[match.id].high++;
+        if (tier === 'existing') perStep[match.id].existing++;
       }
-      if (pid) perParticipantCount[pid] = (perParticipantCount[pid] || 0) + 1;
+      if (pid) participantIds.add(pid);
     });
 
-    const participantCounts = Object.values(perParticipantCount);
-    const participants = Object.keys(perParticipantCount).length;
+    const participants = participantIds.size;
 
     const byColumn = {};
     const byPhase = {};
     Object.values(perStep).forEach(row => {
-      byColumn[row.column] = byColumn[row.column] || { total:0, high:0 };
+      byColumn[row.column] = byColumn[row.column] || { total:0, existing:0 };
       byColumn[row.column].total += row.total;
-      byColumn[row.column].high += row.high;
-      byPhase[row.phase] = byPhase[row.phase] || { total:0, high:0 };
+      byColumn[row.column].existing += row.existing;
+      byPhase[row.phase] = byPhase[row.phase] || { total:0, existing:0 };
       byPhase[row.phase].total += row.total;
-      byPhase[row.phase].high += row.high;
+      byPhase[row.phase].existing += row.existing;
     });
 
-    let min=0, max=0, avg=0;
-    if (participantCounts.length) {
-      min = Math.min(...participantCounts);
-      max = Math.max(...participantCounts);
-      avg = (participantCounts.reduce((a,b)=>a+b,0) / participantCounts.length);
-    }
-
-    return { perStep, byColumn, byPhase, participants, participantCounts, min, max, avg };
+    return { perStep, byColumn, byPhase, participants };
   }
 
   function renderFacilitator(){
@@ -684,10 +679,7 @@
 
     // Stat row
     const statRow = h('div', { class:'stat-row' }, [
-      statBox(agg.participants, 'Submitted'),
-      statBox(agg.min, 'Min steps'),
-      statBox(agg.max, 'Max steps'),
-      statBox(agg.avg.toFixed(1), 'Avg steps')
+      statBox(agg.participants, 'Submitted')
     ]);
     wrap.appendChild(statRow);
 
@@ -706,7 +698,7 @@
         thCell('Phase', 'phase'),
         thCell('Column', 'column'),
         thCell('Total', 'total'),
-        thCell('High priority', 'high')
+        thCell('Existing initiatives', 'existing')
       ])
     ]);
     table.appendChild(thead);
@@ -717,36 +709,20 @@
         h('td', {}, [r.phase]),
         h('td', {}, [r.column]),
         h('td', {}, [String(r.total)]),
-        h('td', {}, [String(r.high)])
+        h('td', {}, [String(r.existing)])
       ]));
     });
     table.appendChild(tbody);
     tableCard.appendChild(table);
     wrap.appendChild(tableCard);
 
+    // Top 5 initiative areas (biggest pain points by total selections)
+    wrap.appendChild(topStepsCard('Top 5 Initiative Areas', rows));
+
     // Rollup by phase
     wrap.appendChild(rollupCard('Roll-up by Phase', agg.byPhase));
     // Rollup by column
     wrap.appendChild(rollupCard('Roll-up by Column', agg.byColumn));
-
-    // Histogram
-    const histCard = h('div', { class:'card' });
-    histCard.appendChild(h('h3', {}, ['Steps selected per participant']));
-    if (!agg.participantCounts.length) {
-      histCard.appendChild(h('p', { style:'color:var(--text-muted);font-size:13px;' }, ['No submissions yet.']));
-    } else {
-      const buckets = [[0,5],[6,10],[11,20],[21,35],[36,73]];
-      const maxCount = Math.max(1, ...buckets.map(([lo,hi]) => agg.participantCounts.filter(c => c>=lo && c<=hi).length));
-      buckets.forEach(([lo,hi]) => {
-        const cnt = agg.participantCounts.filter(c => c>=lo && c<=hi).length;
-        histCard.appendChild(h('div', { class:'hist-bar' }, [
-          h('div', { class:'hist-label' }, [`${lo}-${hi}`]),
-          h('div', { class:'hist-track' }, [h('div', { class:'hist-fill', style:`width:${(cnt/maxCount*100)}%` })]),
-          h('div', { style:'width:24px;text-align:right;font-weight:700;' }, [String(cnt)])
-        ]));
-      });
-    }
-    wrap.appendChild(histCard);
 
     return wrap;
   }
@@ -768,6 +744,25 @@
         render();
       }
     }, [label + (active ? (state.sortDir === 'desc' ? ' ▾' : ' ▴') : '')]);
+  }
+
+  function topStepsCard(title, sortedRowsByTotalDesc){
+    const card = h('div', { class:'card' });
+    card.appendChild(h('h3', {}, [title]));
+    const top5 = [...sortedRowsByTotalDesc].sort((a,b) => b.total - a.total).slice(0, 5).filter(r => r.total > 0);
+    if (!top5.length) {
+      card.appendChild(h('p', { style:'color:var(--text-muted);font-size:13px;' }, ['No selections yet.']));
+      return card;
+    }
+    const maxVal = Math.max(...top5.map(r => r.total), 1);
+    top5.forEach(r => {
+      card.appendChild(h('div', { class:'bar-row' }, [
+        h('div', { class:'bar-label', title:`${r.phase} \u2192 ${r.column}`, style:'width:220px;line-height:1.3;' }, [r.step]),
+        h('div', { class:'bar-track' }, [h('div', { class:'bar-fill', style:`width:${(r.total/maxVal*100)}%` })]),
+        h('div', { class:'bar-value' }, [String(r.total)])
+      ]));
+    });
+    return card;
   }
 
   function rollupCard(title, rollup){
