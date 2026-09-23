@@ -12,6 +12,8 @@
     --light:#93E2FF;
     --neutral:#D9D9D9;
     --neutral-dark:#B8B8B8;
+    --tile-bg:#EDEFF1;
+    --phase-header-bg:#D8F0FC;
     --bg:#FFFFFF;
     --panel:#F7FBFD;
     --text:#1A1A2E;
@@ -40,6 +42,14 @@
   }
   header.top h1{margin:0 0 4px;font-size:22px;font-weight:700;}
   header.top p.sub{margin:0;font-size:13px;opacity:0.9;}
+  header.top .eyebrow{
+    font-size:11px;
+    font-weight:700;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    opacity:0.85;
+    margin-bottom:4px;
+  }
   .instructions{
     background:var(--panel);
     border:1px solid var(--light);
@@ -84,7 +94,7 @@
   .phase-header{
     width:100%;
     text-align:left;
-    background:var(--panel);
+    background:var(--phase-header-bg);
     border:none;
     padding:14px 16px;
     font-size:16px;
@@ -129,7 +139,7 @@
     padding:10px 14px;
     border-radius:8px;
     border:1.5px solid var(--neutral);
-    background:var(--white);
+    background:var(--tile-bg);
     font-size:14px;
     font-weight:500;
     color:var(--text);
@@ -368,7 +378,6 @@
     submitted: false,
     openPhases: { 0: true },
     passcodeError: false,
-    facilitatorRevealed: false,
     facilitatorData: null,
     facilitatorLoading: false,
     facilitatorError: null,
@@ -413,13 +422,14 @@
     const wrap = h('div', { class:'app' });
 
     const header = h('header', { class:'top' }, [
+      h('div', { class:'eyebrow' }, ['EBOS GROUP']),
       h('h1', {}, ['Procurement Workshop']),
-      h('p', { class:'sub' }, ['Tap process steps where automation would help'])
+      h('p', { class:'sub' }, ['Exercise 5: Which procurement steps would benefit most from AI and automation tools?'])
     ]);
     wrap.appendChild(header);
 
     wrap.appendChild(h('div', { class:'instructions' }, [
-      h('strong', {}, ['Welcome to the Procurement Workshop!']),
+      h('strong', {}, ['Instructions']),
       document.createElement('br'),
       document.createTextNode('Tap the process steps below where you think automation would be most useful — especially the pain points or heavily manual tasks.'),
       h('ul', {}, [
@@ -543,7 +553,7 @@
       h('button', { class:'btn btn-primary', style:'flex:none;padding:14px 28px;', onclick: () => {
         if (inputEl.value === FACILITATOR_PASSCODE) {
           state.view = 'facilitator';
-          state.facilitatorRevealed = false;
+          state.facilitatorData = null;
           render();
         } else {
           state.passcodeError = true;
@@ -626,20 +636,6 @@
       wrap.appendChild(h('div', { style:'text-align:right;font-size:11px;color:var(--text-muted);margin:-8px 0 12px;' }, [
         lastUpdatedText
       ]));
-    }
-
-    if (!state.facilitatorRevealed) {
-      const card = h('div', { class:'card' }, [
-        h('div', { class:'hidden-panel' }, [
-          h('p', {}, ['Results are hidden until you choose to reveal them.']),
-          h('button', {
-            class:'btn btn-primary', style:'flex:none;padding:14px 28px;',
-            onclick: async () => { state.facilitatorRevealed = true; await loadFacilitatorData(); }
-          }, ['Reveal Results'])
-        ])
-      ]);
-      wrap.appendChild(card);
-      return wrap;
     }
 
     if (state.facilitatorError) {
